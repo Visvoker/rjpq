@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createRoom, joinRoom } from "@/app/actions/room";
 
 export function LobbyEntryPage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export function LobbyEntryPage() {
   const [error, setError] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [joinError, setJoinError] = useState("");
+
+  const [isPending, setIsPending] = useState(false);
 
   const handleConfirmNickname = () => {
     if (!tempNickname.trim()) {
@@ -39,29 +42,48 @@ export function LobbyEntryPage() {
     setStep("join");
   };
 
-  const generateRoomCode = () => {
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
-  };
+  const handleCreateRoom = async () => {
+    try {
+      setIsPending(true);
 
-  const handleCreateRoom = () => {
-    const newRoomCode = generateRoomCode();
-    router.push(
-      `/room/${newRoomCode}?nickname=${encodeURIComponent(nickname)}`,
-    );
-  };
+      const result = await createRoom(nickname);
+      console.log(result);
 
-  const handleJoinRoom = () => {
-    if (!roomCode.trim()) {
-      setJoinError("請輸入房號");
-      return;
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.push(
+        `/room/${result.roomCode}?nickname=${encodeURIComponent(nickname)}`,
+      );
+    } catch (error) {
+      console.error(error);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsPending(false);
     }
+  };
 
-    setJoinError("");
-    router.push(
-      `/room/${roomCode.trim().toUpperCase()}?nickname=${encodeURIComponent(
-        nickname,
-      )}`,
-    );
+  const handleJoinRoom = async () => {
+    try {
+      setIsPending(true);
+
+      const result = await joinRoom(roomCode, nickname);
+
+      if (result.error) {
+        setJoinError(result.error);
+        return;
+      }
+
+      router.push(
+        `/room/${result.roomCode}?nickname=${encodeURIComponent(nickname)}`,
+      );
+    } catch (error) {
+      console.log(error);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -103,11 +125,16 @@ export function LobbyEntryPage() {
               Nickname:{" "}
               <span className="font-bold text-xl text-black">{nickname}</span>
             </p>
-
             <div></div>
-            <Button onClick={handleCreateRoom}>Create Room</Button>
-            <Button variant="secondary" onClick={handleJoinClick}>
-              Join Room
+            <Button onClick={handleCreateRoom} disabled={isPending}>
+              {isPending ? "Loading..." : "Create Room"}
+            </Button>{" "}
+            <Button
+              variant="secondary"
+              onClick={handleJoinClick}
+              disabled={isPending}
+            >
+              {isPending ? "Loading..." : "Join Room"}{" "}
             </Button>
           </div>
         )}
