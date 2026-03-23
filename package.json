@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
   },
@@ -35,6 +36,5 @@
     "prisma": "^7.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"
-  },
-  "type": "module"
+  }
 }
