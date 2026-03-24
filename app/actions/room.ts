@@ -30,9 +30,21 @@ export async function createRoom(nickname: string) {
             },
           },
         },
+        include: {
+          players: true,
+        },
       });
 
-      return { success: true, roomCode: room.code };
+      const hostPlayer = room.players[0];
+
+      return {
+        success: true,
+        nickname: hostPlayer.nickname,
+        playerId: hostPlayer.id,
+        roomId: room.id,
+        roomCode: room.code,
+        isHost: hostPlayer.isHost,
+      };
     } catch (error) {
       attempts++;
 
@@ -86,7 +98,7 @@ export async function joinRoom(roomCode: string, nickname: string) {
     return { error: "此暱稱已被使用" };
   }
 
-  await prisma.player.create({
+  const player = await prisma.player.create({
     data: {
       nickname: trimmedNickname,
       roomId: room.id,
@@ -94,5 +106,12 @@ export async function joinRoom(roomCode: string, nickname: string) {
     },
   });
 
-  return { success: true, roomCode: room.code };
+  return {
+    success: true,
+    nickname: player.nickname,
+    playerId: player.id,
+    roomId: room.id,
+    roomCode: room.code,
+    isHost: player.isHost,
+  };
 }

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -13,77 +14,113 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createRoom, joinRoom } from "@/app/actions/room";
+import { usePlayerStore } from "@/app/store/use-player-store";
+import { createRoomAction, joinRoomAction } from "@/app/actions/lobby";
 
-export function LobbyEntryPage() {
+type Step = "input" | "action" | "join";
+
+export function LobbyPage() {
   const router = useRouter();
+  const setPlayer = usePlayerStore((state) => state.setPlayer);
+  const playerNickname = usePlayerStore((state) => state.nickname);
 
+  const [step, setStep] = useState<Step>("input");
   const [nickname, setNickname] = useState("");
   const [tempNickname, setTempNickname] = useState("");
-  const [step, setStep] = useState<"input" | "action" | "join">("input");
-  const [error, setError] = useState("");
   const [roomCode, setRoomCode] = useState("");
+
+  const [error, setError] = useState("");
   const [joinError, setJoinError] = useState("");
 
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (playerNickname) {
+      setNickname(playerNickname);
+      setTempNickname(playerNickname);
+      setStep("action");
+    }
+  }, [playerNickname]);
 
   const handleConfirmNickname = () => {
-    if (!tempNickname.trim()) {
-      setError("Please enter the Nickname ");
+    const trimmedNickname = tempNickname.trim();
+
+    if (!trimmedNickname) {
+      setError("請輸入暱稱");
       return;
     }
 
+    setNickname(trimmedNickname);
     setError("");
-    setNickname(tempNickname.trim());
     setStep("action");
   };
 
   const handleJoinClick = () => {
+    setJoinError("");
     setStep("join");
   };
 
-  const handleCreateRoom = async () => {
-    try {
-      setIsPending(true);
+  const handleCreateRoom = () => {
+    if (!nickname.trim()) {
+      setError("請先輸入暱稱");
+      setStep("input");
+      return;
+    }
 
-      const result = await createRoom(nickname);
-      console.log(result);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("nickname", nickname);
 
-      if (result.error) {
+      const result = await createRoomAction(formData);
+
+      if ("error" in result) {
         setError(result.error);
+        setStep("input");
         return;
       }
-      router.push(
-        `/room/${result.roomCode}?nickname=${encodeURIComponent(nickname)}`,
-      );
-    } catch (error) {
-      console.error(error);
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setIsPending(false);
-    }
+
+      setPlayer({
+        nickname: result.nickname,
+        playerId: result.playerId,
+        roomId: result.roomId,
+        roomCode: result.roomCode,
+        isHost: result.isHost,
+      });
+
+      router.push(`/room/${result.roomCode}`);
+    });
   };
 
-  const handleJoinRoom = async () => {
-    try {
-      setIsPending(true);
+  const handleJoinRoom = () => {
+    const trimmedRoomCode = roomCode.trim().toUpperCase();
 
-      const result = await joinRoom(roomCode, nickname);
+    if (!trimmedRoomCode) {
+      setJoinError("請輸入房號");
+      return;
+    }
 
-      if (result.error) {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("nickname", nickname);
+      formData.append("roomCode", trimmedRoomCode);
+
+      const result = await joinRoomAction(formData);
+
+      if ("error" in result) {
         setJoinError(result.error);
         return;
       }
 
-      router.push(
-        `/room/${result.roomCode}?nickname=${encodeURIComponent(nickname)}`,
-      );
-    } catch (error) {
-      console.log(error);
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setIsPending(false);
-    }
+      setPlayer({
+        nickname: result.nickname,
+        playerId: result.playerId,
+        roomId: result.roomId,
+        roomCode: result.roomCode,
+        isHost: result.isHost,
+      });
+
+      router.push(`/room/${result.roomCode}`);
+    });
   };
 
   return (
@@ -94,26 +131,29 @@ export function LobbyEntryPage() {
           Enter your nickname below to create or join the room
         </CardDescription>
       </CardHeader>
+
       <CardContent>
         {step === "input" && (
           <form>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Nickname</Label>
+                <Label htmlFor="nickname">Nickname</Label>
                 <Input
+                  id="nickname"
                   value={tempNickname}
                   onChange={(e) => {
                     setTempNickname(e.target.value);
-                    if (error) setError(""); // 使用者開始輸入就清錯誤
+                    if (error) setError("");
                   }}
                   placeholder="John"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
+                      e.preventDefault();
                       handleConfirmNickname();
                     }
                   }}
                 />
-                {error && <p className="text-sm text-red-500">{error}</p>}{" "}
+                {error && <p className="text-sm text-red-500">{error}</p>}
               </div>
             </div>
           </form>
@@ -125,16 +165,17 @@ export function LobbyEntryPage() {
               Nickname:{" "}
               <span className="font-bold text-xl text-black">{nickname}</span>
             </p>
-            <div></div>
+
             <Button onClick={handleCreateRoom} disabled={isPending}>
               {isPending ? "Loading..." : "Create Room"}
-            </Button>{" "}
+            </Button>
+
             <Button
               variant="secondary"
               onClick={handleJoinClick}
               disabled={isPending}
             >
-              {isPending ? "Loading..." : "Join Room"}{" "}
+              {isPending ? "Loading..." : "Join Room"}
             </Button>
           </div>
         )}
@@ -152,10 +193,16 @@ export function LobbyEntryPage() {
                 id="roomCode"
                 value={roomCode}
                 onChange={(e) => {
-                  setRoomCode(e.target.value);
+                  setRoomCode(e.target.value.toUpperCase());
                   if (joinError) setJoinError("");
                 }}
                 placeholder="Enter room code"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleJoinRoom();
+                  }
+                }}
               />
               {joinError && <p className="text-sm text-red-500">{joinError}</p>}
             </div>
@@ -173,10 +220,18 @@ export function LobbyEntryPage() {
 
           {step === "join" && (
             <div className="flex justify-between items-center w-full">
-              <Button variant="ghost" onClick={() => setStep("action")}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setJoinError("");
+                  setStep("action");
+                }}
+              >
                 ← Back
               </Button>
-              <Button onClick={handleJoinRoom}>Confirm Join</Button>
+              <Button onClick={handleJoinRoom} disabled={isPending}>
+                {isPending ? "Loading..." : "Confirm Join"}
+              </Button>
             </div>
           )}
         </CardFooter>
