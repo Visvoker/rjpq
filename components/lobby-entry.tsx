@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { Pen } from "lucide-react";
+import { useState, useTransition } from "react";
+import { OTPInput, OTPInputContext } from "input-otp";
 
+import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
+import { usePlayerStore } from "@/app/store/use-player-store";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,68 +18,82 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePlayerStore } from "@/app/store/use-player-store";
-import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 
-type Step = "input" | "action" | "join";
+type LobbyView = "nickname" | "menu" | "join";
 
 export function LobbyPage() {
   const router = useRouter();
   const setPlayer = usePlayerStore((state) => state.setPlayer);
-  const playerNickname = usePlayerStore((state) => state.nickname);
+  const storedNickname = usePlayerStore((state) => state.nickname);
 
-  const [step, setStep] = useState<Step>("input");
-  const [nickname, setNickname] = useState("");
-  const [tempNickname, setTempNickname] = useState("");
+  const [view, setView] = useState<LobbyView>(
+    storedNickname ? "menu" : "nickname",
+  );
+
+  const [draftNickname, setDraftNickname] = useState(storedNickname ?? "");
+  const [confirmedNickname, setConfirmedNickname] = useState(
+    storedNickname ?? "",
+  );
   const [roomCode, setRoomCode] = useState("");
 
-  const [error, setError] = useState("");
-  const [joinError, setJoinError] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [roomCodeError, setRoomCodeError] = useState("");
 
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (playerNickname) {
-      setNickname(playerNickname);
-      setTempNickname(playerNickname);
-      setStep("action");
-    }
-  }, [playerNickname]);
+  const clearNicknameError = () => {
+    if (nicknameError) setNicknameError("");
+  };
+
+  const clearRoomCodeError = () => {
+    if (roomCodeError) setRoomCodeError("");
+  };
 
   const handleConfirmNickname = () => {
-    const trimmedNickname = tempNickname.trim();
+    const trimmedNickname = draftNickname.trim();
 
     if (!trimmedNickname) {
-      setError("請輸入暱稱");
+      setNicknameError("請輸入暱稱");
       return;
     }
 
-    setNickname(trimmedNickname);
-    setError("");
-    setStep("action");
+    if (trimmedNickname.length > 16) {
+      setNicknameError("暱稱最多 16 個字");
+      return;
+    }
+
+    setConfirmedNickname(trimmedNickname);
+    setNicknameError("");
+    setView("menu");
   };
 
-  const handleJoinClick = () => {
-    setJoinError("");
-    setStep("join");
+  const handleOpenJoinView = () => {
+    setRoomCodeError("");
+    setView("join");
+  };
+
+  const handleBackToMenu = () => {
+    setRoomCode("");
+    setRoomCodeError("");
+    setView("menu");
   };
 
   const handleCreateRoom = () => {
-    if (!nickname.trim()) {
-      setError("請先輸入暱稱");
-      setStep("input");
+    if (!confirmedNickname.trim()) {
+      setNicknameError("請先輸入暱稱");
+      setView("nickname");
       return;
     }
 
     startTransition(async () => {
       const formData = new FormData();
-      formData.append("nickname", nickname);
+      formData.append("nickname", confirmedNickname);
 
       const result = await createRoomAction(formData);
 
       if ("error" in result) {
-        setError(result.error);
-        setStep("input");
+        setNicknameError(result.error);
+        setView("nickname");
         return;
       }
 
@@ -94,20 +112,26 @@ export function LobbyPage() {
   const handleJoinRoom = () => {
     const trimmedRoomCode = roomCode.trim().toUpperCase();
 
-    if (!trimmedRoomCode) {
-      setJoinError("請輸入房號");
+    if (!confirmedNickname.trim()) {
+      setNicknameError("請先輸入暱稱");
+      setView("nickname");
+      return;
+    }
+
+    if (trimmedRoomCode.length !== 6) {
+      setRoomCodeError("請輸入完整房號");
       return;
     }
 
     startTransition(async () => {
       const formData = new FormData();
-      formData.append("nickname", nickname);
+      formData.append("nickname", confirmedNickname);
       formData.append("roomCode", trimmedRoomCode);
 
       const result = await joinRoomAction(formData);
 
       if ("error" in result) {
-        setJoinError(result.error);
+        setRoomCodeError(result.error);
         return;
       }
 
@@ -123,119 +147,186 @@ export function LobbyPage() {
     });
   };
 
-  return (
-    <Card className="w-full max-w-sm flex flex-col">
-      <CardHeader className="items-center text-center space-y-2">
-        <CardTitle className="text-2xl font-bold">Artale RJPQ</CardTitle>
-        <CardDescription>
-          Enter your nickname below to create or join the room
-        </CardDescription>
-      </CardHeader>
+  const handleEditNickname = () => {
+    setDraftNickname(confirmedNickname);
+    setNicknameError("");
+    setRoomCode("");
+    setRoomCodeError("");
+    setView("nickname");
+  };
 
-      <CardContent>
-        {step === "input" && (
-          <form>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
+  const renderNicknameView = () => {
+    return (
+      <>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConfirmNickname();
+            }}
+          >
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
                 <Label htmlFor="nickname">Nickname</Label>
-                <Input
-                  id="nickname"
-                  value={tempNickname}
-                  onChange={(e) => {
-                    setTempNickname(e.target.value);
-                    if (error) setError("");
-                  }}
-                  placeholder="John"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleConfirmNickname();
-                    }
-                  }}
-                />
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {draftNickname && (
+                  <span className="text-xs text-muted-foreground">
+                    {draftNickname.length}/16
+                  </span>
+                )}
               </div>
+              <Input
+                id="nickname"
+                value={draftNickname}
+                maxLength={16}
+                onChange={(e) => {
+                  setDraftNickname(e.target.value);
+                  clearNicknameError();
+                }}
+                placeholder="John"
+                disabled={isPending}
+              />
+              {nicknameError && (
+                <p className="text-sm text-red-500">{nicknameError}</p>
+              )}
             </div>
           </form>
-        )}
+        </CardContent>
 
-        {step === "action" && (
+        <CardFooter>
+          <Button
+            onClick={handleConfirmNickname}
+            className="w-full"
+            disabled={isPending}
+          >
+            Confirm
+          </Button>
+        </CardFooter>
+      </>
+    );
+  };
+
+  const renderMenuView = () => {
+    return (
+      <>
+        <CardContent>
+          <div className="flex items-center">
+            <p className="text-muted-foreground ">
+              Nickname:{" "}
+              <span className="font-bold text-xl text-black ml-1">
+                {confirmedNickname}
+              </span>
+            </p>
+            <Button
+              variant="ghost"
+              onClick={handleEditNickname}
+              disabled={isPending}
+              size="icon-xs"
+              className="ml-1.5 hover:bg-transparent"
+            >
+              <span className="text-muted-foreground">
+                <Pen />
+              </span>
+            </Button>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between gap-2">
+          <Button
+            className="w-auto"
+            onClick={handleCreateRoom}
+            disabled={isPending}
+          >
+            {isPending ? "Loading..." : "Create Room"}
+          </Button>
+
+          <Button
+            className="w-auto"
+            variant="secondary"
+            onClick={handleOpenJoinView}
+            disabled={isPending}
+          >
+            {isPending ? "Loading..." : "Join Room"}
+          </Button>
+        </CardFooter>
+      </>
+    );
+  };
+
+  const renderJoinView = () => {
+    return (
+      <>
+        <CardContent>
           <div className="flex flex-col gap-4">
             <p className="text-muted-foreground">
               Nickname:{" "}
-              <span className="font-bold text-xl text-black">{nickname}</span>
+              <span className="font-bold text-xl text-black">
+                {confirmedNickname}
+              </span>
             </p>
 
-            <Button onClick={handleCreateRoom} disabled={isPending}>
-              {isPending ? "Loading..." : "Create Room"}
-            </Button>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleJoinRoom();
+              }}
+            >
+              <OTPInput
+                maxLength={6}
+                value={roomCode}
+                onChange={(value) => setRoomCode(value.toUpperCase())}
+                containerClassName="flex gap-2 justify-center"
+                render={({ slots }) => (
+                  <>
+                    {slots.map((slot, idx) => (
+                      <div
+                        key={idx}
+                        className="w-10 h-12 border rounded-md flex items-center justify-center text-lg font-bold focus-within:border-primary"
+                      >
+                        {slot.char ?? ""}
+                      </div>
+                    ))}
+                  </>
+                )}
+              />
+              {roomCodeError && (
+                <p className="text-sm text-red-500">{roomCodeError}</p>
+              )}
+            </form>
+          </div>
+        </CardContent>
 
+        <CardFooter>
+          <div className="flex w-full items-center justify-between">
             <Button
-              variant="secondary"
-              onClick={handleJoinClick}
+              variant="ghost"
+              onClick={handleBackToMenu}
               disabled={isPending}
             >
-              {isPending ? "Loading..." : "Join Room"}
+              ← Back
+            </Button>
+
+            <Button onClick={handleJoinRoom} disabled={isPending}>
+              {isPending ? "Loading..." : "Confirm Join"}
             </Button>
           </div>
-        )}
-
-        {step === "join" && (
-          <div className="flex flex-col gap-4">
-            <p className="text-muted-foreground">
-              Nickname:{" "}
-              <span className="font-bold text-xl text-black">{nickname}</span>
-            </p>
-
-            <div className="grid gap-2">
-              <Label htmlFor="roomCode">Room Code</Label>
-              <Input
-                id="roomCode"
-                value={roomCode}
-                onChange={(e) => {
-                  setRoomCode(e.target.value.toUpperCase());
-                  if (joinError) setJoinError("");
-                }}
-                placeholder="Enter room code"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleJoinRoom();
-                  }
-                }}
-              />
-              {joinError && <p className="text-sm text-red-500">{joinError}</p>}
-            </div>
-          </div>
-        )}
-      </CardContent>
-
-      {(step === "input" || step === "join") && (
-        <CardFooter>
-          {step === "input" && (
-            <Button onClick={handleConfirmNickname} className="w-full">
-              Confirm
-            </Button>
-          )}
-
-          {step === "join" && (
-            <div className="flex justify-between items-center w-full">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setJoinError("");
-                  setStep("action");
-                }}
-              >
-                ← Back
-              </Button>
-              <Button onClick={handleJoinRoom} disabled={isPending}>
-                {isPending ? "Loading..." : "Confirm Join"}
-              </Button>
-            </div>
-          )}
         </CardFooter>
-      )}
+      </>
+    );
+  };
+
+  return (
+    <Card className="flex w-full max-w-sm flex-col">
+      <CardHeader className="items-center space-y-2 text-center">
+        <CardTitle className="text-2xl font-bold">Artale RJPQ</CardTitle>
+        {view === "nickname" && (
+          <CardDescription>
+            Enter your nickname below to create or join the room
+          </CardDescription>
+        )}
+      </CardHeader>
+
+      {view === "nickname" && renderNicknameView()}
+      {view === "menu" && renderMenuView()}
+      {view === "join" && renderJoinView()}
     </Card>
   );
 }
