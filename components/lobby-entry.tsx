@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePlayerStore } from "@/app/store/use-player-store";
-import { createRoomAction, joinRoomAction } from "@/app/actions/lobby";
+import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 
 type Step = "input" | "action" | "join";
 
