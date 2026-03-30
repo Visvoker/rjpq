@@ -12,6 +12,7 @@ export async function getRoomByCode(code: string) {
       where: { code: trimmedCode },
       include: {
         players: true,
+        selections: true,
       },
     });
 
