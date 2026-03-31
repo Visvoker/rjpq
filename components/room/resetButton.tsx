@@ -13,8 +13,20 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { Button } from "@/components/ui/button";
+import { getSocket } from "@/lib/socket/client";
 
-export function ResetButton({ action }: { action: () => Promise<void> }) {
+type ResetButtonProps = {
+  roomId: string;
+};
+
+export function ResetButton({ roomId }: ResetButtonProps) {
+  console.log({ roomId });
+  const handleReset = () => {
+    const socket = getSocket();
+
+    socket.emit("reset-room", { roomId });
+  };
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -31,8 +43,7 @@ export function ResetButton({ action }: { action: () => Promise<void> }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        {/* 🔥 這裡才是真正 submit */}
-        <form action={action}>
+        <form onClick={handleReset}>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
 

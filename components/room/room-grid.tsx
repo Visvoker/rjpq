@@ -1,14 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { selectSlot } from "@/app/actions/selection";
 import clsx from "clsx";
+import { useState } from "react";
+
 import { PlayerColor } from "@/lib/color";
+import { getSocket } from "@/lib/socket/client";
 
 type Selection = {
   id: string;
-  roomId: string;
   playerId: string;
   floor: number;
   slot: number;
@@ -27,8 +26,6 @@ export function RoomGrid({
   selections,
   playerColorMap,
 }: RoomGridProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
   const floors = Array.from({ length: 10 }, (_, floorIndex) => ({
@@ -36,22 +33,15 @@ export function RoomGrid({
     slots: Array.from({ length: 4 }, (_, slotIndex) => slotIndex + 1),
   }));
 
-  const handleSelect = async (floor: number, slot: number) => {
+  const handleSelect = (floor: number, slot: number) => {
     setError("");
 
-    startTransition(async () => {
-      const result = await selectSlot({
-        roomId,
-        playerId: currentPlayerId,
-        floor,
-        slot,
-      });
-      if (!result.success) {
-        setError(result.error);
-        return;
-      }
+    const socket = getSocket();
 
-      router.refresh();
+    socket.emit("select-tile", {
+      roomId,
+      floor,
+      slot,
     });
   };
 
@@ -77,9 +67,10 @@ export function RoomGrid({
               const selection = selections.find(
                 (item) => item.floor === floorItem.floor && item.slot === slot,
               );
+
               const ownerColor = selection
                 ? playerColorMap[selection.playerId]
-                : null;
+                : undefined;
 
               const isMine = selection?.playerId === currentPlayerId;
               const isOccupiedByOther =
@@ -89,12 +80,12 @@ export function RoomGrid({
                 <button
                   key={`${floorItem.floor}-${slot}`}
                   type="button"
-                  disabled={isPending || isOccupiedByOther}
+                  disabled={isOccupiedByOther}
                   onClick={() => handleSelect(floorItem.floor, slot)}
                   className={clsx(
                     "aspect-square max-w-[40px] sm:max-w-[50px] rounded-lg border shadow-sm transition",
                     selection
-                      ? ownerColor?.cell
+                      ? (ownerColor?.cell ?? "bg-muted")
                       : "bg-background hover:bg-accent hover:text-accent-foreground",
                     isMine && ownerColor?.ring,
                   )}
