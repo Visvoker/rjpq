@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Pen } from "lucide-react";
 import { useState, useTransition } from "react";
-import { OTPInput, OTPInputContext } from "input-otp";
+import { OTPInput } from "input-otp";
 
 import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 import { usePlayerStore } from "@/app/store/use-player-store";
@@ -221,7 +221,7 @@ export function LobbyPage() {
               onClick={handleEditNickname}
               disabled={isPending}
               size="icon-xs"
-              className="ml-1.5 hover:bg-transparent"
+              className="ml-1.5 "
             >
               <span className="text-muted-foreground">
                 <Pen />
