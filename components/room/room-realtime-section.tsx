@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getSocket } from "@/lib/socket/client";
 import { RoomGrid } from "@/components/room/room-grid";
 import { RoomInfoCard } from "@/components/room/room-info-card";
 import { PlayersCard } from "@/components/room/room-players-card";
-import { createPlayerColorMap } from "@/lib/color";
+import type {
+  ConnectedPlayer as SocketPlayer,
+  Tile as SocketTile,
+} from "@/lib/socket/types";
+import { PlayerColor } from "@/lib/socket/color";
 
 type Player = {
   id: string;
-  nickname: string;
-  isHost: boolean;
-};
-
-type SocketPlayer = {
-  socketId: string;
-  playerId: string;
   nickname: string;
   isHost: boolean;
 };
@@ -35,16 +33,6 @@ type CurrentPlayer = {
   isHost: boolean;
 };
 
-type SocketTile = {
-  floor: number;
-  slot: number;
-  occupiedBy: {
-    playerId: string;
-    nickname: string;
-  };
-  selectedAt: number;
-};
-
 type RoomRealtimeSectionProps = {
   roomId: string;
   roomCode: string;
@@ -53,6 +41,23 @@ type RoomRealtimeSectionProps = {
   initialSelections: Selection[];
   actionsSlot: ReactNode;
 };
+
+function normalizePlayers(players: SocketPlayer[]): Player[] {
+  return players.map((player) => ({
+    id: player.playerId,
+    nickname: player.nickname,
+    isHost: player.isHost,
+  }));
+}
+
+function normalizeSelections(tiles: SocketTile[]): Selection[] {
+  return tiles.map((tile) => ({
+    id: `${tile.floor}-${tile.slot}`,
+    floor: tile.floor,
+    slot: tile.slot,
+    playerId: tile.occupiedBy.playerId,
+  }));
+}
 
 export function RoomRealtimeSection({
   roomId,
@@ -64,56 +69,43 @@ export function RoomRealtimeSection({
 }: RoomRealtimeSectionProps) {
   const [players, setPlayers] = useState<Player[]>(initialPlayers);
   const [selections, setSelections] = useState<Selection[]>(initialSelections);
+  const [playerColorMap, setPlayerColorMap] = useState<
+    Record<string, PlayerColor>
+  >({});
 
   useEffect(() => {
     const socket = getSocket();
 
     // connection
     const onConnect = () => {
-      console.log("client connected:", socket.id);
-
       socket.emit("join-room", {
         roomId,
         roomCode,
         player: currentPlayer,
       });
     };
+
     // init
     const onInitState = (payload: {
       roomId: string;
       roomCode: string;
       players: SocketPlayer[];
       tiles: SocketTile[];
+      playerColors: Record<string, PlayerColor>;
     }) => {
-      const normalizedPlayers: Player[] = payload.players.map((player) => ({
-        id: player.playerId,
-        nickname: player.nickname,
-        isHost: player.isHost,
-      }));
-
-      const normalizedSelections: Selection[] = payload.tiles.map((tile) => ({
-        id: `${tile.floor}-${tile.slot}`,
-        floor: tile.floor,
-        slot: tile.slot,
-        playerId: tile.occupiedBy.playerId,
-      }));
-
-      setPlayers(normalizedPlayers);
-      setSelections(normalizedSelections);
+      setPlayers(normalizePlayers(payload.players));
+      setSelections(normalizeSelections(payload.tiles));
+      setPlayerColorMap(payload.playerColors);
     };
 
     // players
     const onPlayerListUpdated = (payload: {
       roomId: string;
       players: SocketPlayer[];
+      playerColors: Record<string, PlayerColor>;
     }) => {
-      const normalizedPlayers: Player[] = payload.players.map((player) => ({
-        id: player.playerId,
-        nickname: player.nickname,
-        isHost: player.isHost,
-      }));
-
-      setPlayers(normalizedPlayers);
+      setPlayers(normalizePlayers(payload.players));
+      setPlayerColorMap(payload.playerColors);
     };
 
     // tiles
@@ -124,6 +116,7 @@ export function RoomRealtimeSection({
         slot: payload.tile.slot,
         playerId: payload.tile.occupiedBy.playerId,
       };
+
       setSelections((prev) => {
         const exists = prev.some(
           (item) =>
@@ -143,6 +136,7 @@ export function RoomRealtimeSection({
         return [...prev, normalizedTile];
       });
     };
+
     const onTileRemoved = (payload: {
       roomId: string;
       floor: number;
@@ -155,12 +149,17 @@ export function RoomRealtimeSection({
         ),
       );
     };
-    const onTileSelectError = (payload: { message: string }) => {
-      console.error(payload.message);
+
+    const onTileSelectError = (payload: {
+      message: string;
+      floor: number;
+      slot: number;
+    }) => {
+      console.error("tile-select-error:", payload);
+      toast.error(payload.message);
     };
 
-    // room actions
-    const onRoomReset = (payload: { roomId: string }) => {
+    const onRoomReset = () => {
       setSelections([]);
     };
 
@@ -172,6 +171,10 @@ export function RoomRealtimeSection({
     socket.on("tile-removed", onTileRemoved);
     socket.on("room-reset", onRoomReset);
 
+    if (socket.connected) {
+      onConnect();
+    }
+
     return () => {
       socket.off("connect", onConnect);
       socket.off("init-state", onInitState);
@@ -181,22 +184,12 @@ export function RoomRealtimeSection({
       socket.off("tile-removed", onTileRemoved);
       socket.off("room-reset", onRoomReset);
     };
-  }, [
-    roomId,
-    roomCode,
-    currentPlayer.playerId,
-    currentPlayer.nickname,
-    currentPlayer.isHost,
-  ]);
+  }, [roomId, roomCode, currentPlayer]);
 
   const host = useMemo(
     () => players.find((player) => player.isHost),
     [players],
   );
-
-  const playerColorMap = useMemo(() => {
-    return createPlayerColorMap(players);
-  }, [players]);
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:px-2">

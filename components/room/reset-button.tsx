@@ -20,7 +20,6 @@ type ResetButtonProps = {
 };
 
 export function ResetButton({ roomId }: ResetButtonProps) {
-  console.log({ roomId });
   const handleReset = () => {
     const socket = getSocket();
 

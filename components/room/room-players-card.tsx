@@ -38,12 +38,13 @@ export function PlayersCard({
           {players.map((player) => {
             const color = playerColorMap[player.id];
             const isCurrentPlayer = player.id === currentPlayerId;
+
             return (
               <div
                 key={player.id}
                 className={clsx(
                   "flex items-center justify-between rounded-lg border bg-background px-3 py-2 transition",
-                  isCurrentPlayer && `ring-2 ${color.ring}`,
+                  isCurrentPlayer && color && `ring-2 ${color.ring}`,
                 )}
               >
                 <div className="flex items-center gap-2">

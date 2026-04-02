@@ -1,17 +1,8 @@
 import type { Server, Socket } from "socket.io";
-import {
-  getOrCreateRoom,
-  getPlayersArray,
-  getRoom,
-  getTilesArray,
-  makeTileKey,
-  removePlayerFromRoom,
-} from "./room-store";
-import type {
-  JoinRoomPayload,
-  SelectTilePayload,
-  TileState,
-} from "./socket-types";
+
+import type { JoinRoomPayload, SelectTilePayload, Tile } from "./types";
+import { getOrCreateRoom, getRoom, upsertPlayerInRoom } from "./room-store";
+import { assignInitialPlayerColor, PLAYER_COLOR_CLASSES } from "./color";
 
 type SocketMeta = {
   roomId?: string;
@@ -30,159 +21,127 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
     meta.roomId = roomId;
     meta.playerId = player.playerId;
 
-    room.players.set(player.playerId, {
+    upsertPlayerInRoom(room, {
+      ...player,
       socketId: socket.id,
-      playerId: player.playerId,
-      nickname: player.nickname,
-      isHost: player.isHost,
     });
 
+    if (!room.playerColors[player.playerId]) {
+      const color = assignInitialPlayerColor(
+        player.playerId,
+        room.playerColors,
+        PLAYER_COLOR_CLASSES,
+      );
+
+      if (color) {
+        room.playerColors[player.playerId] = color;
+      }
+    }
+
+    // 3️⃣ 傳 init-state（只給自己）
     socket.emit("init-state", {
       roomId: room.roomId,
       roomCode: room.roomCode,
-      players: getPlayersArray(room),
-      tiles: getTilesArray(room),
+      players: room.players,
+      tiles: room.tiles,
+      playerColors: room.playerColors,
     });
 
+    // 4️⃣ 廣播玩家列表更新（給整個房間）
     io.to(roomId).emit("player-list-updated", {
       roomId,
-      players: getPlayersArray(room),
+      players: room.players,
+      playerColors: room.playerColors,
     });
   });
 
   socket.on("select-tile", (payload: SelectTilePayload) => {
     const { roomId, floor, slot } = payload;
-    const playerId = meta.playerId;
-
-    if (!playerId) {
-      socket.emit("tile-select-error", {
-        message: "player not found in socket session",
-        floor,
-        slot,
-      });
-      return;
-    }
 
     const room = getRoom(roomId);
+
     if (!room) {
       socket.emit("tile-select-error", {
-        message: "room not found",
+        message: "房間不存在",
         floor,
         slot,
       });
       return;
     }
 
-    const player = room.players.get(playerId);
-    if (!player) {
+    if (!meta.playerId) {
       socket.emit("tile-select-error", {
-        message: "player not found in room",
+        message: "找不到玩家資訊",
         floor,
         slot,
       });
       return;
     }
 
-    const tileKey = makeTileKey(floor, slot);
-    const existingTile = room.tiles.get(tileKey);
+    const currentPlayer = room.players.find(
+      (player) => player.playerId === meta.playerId,
+    );
+
+    if (!currentPlayer) {
+      socket.emit("tile-select-error", {
+        message: "玩家不在房間內",
+        floor,
+        slot,
+      });
+      return;
+    }
+
+    // 1. 先檢查這格有沒有人選過
+    const existingTile = room.tiles.find(
+      (tile) => tile.floor === floor && tile.slot === slot,
+    );
 
     if (existingTile) {
       socket.emit("tile-select-error", {
-        message: "tile already occupied",
+        message: "此格已被選取",
         floor,
         slot,
       });
       return;
     }
 
-    const previousSelectionOnSameFloor = Array.from(room.tiles.entries()).find(
-      ([, tile]) =>
-        tile.floor === floor && tile.occupiedBy.playerId === player.playerId,
+    const playerTileOnFloor = room.tiles.find(
+      (tile) =>
+        tile.occupiedBy.playerId === meta.playerId && tile.floor === floor,
     );
 
-    if (previousSelectionOnSameFloor) {
-      const [previousTileKey, previousTile] = previousSelectionOnSameFloor;
+    if (playerTileOnFloor && playerTileOnFloor.slot === slot) {
+      return;
+    }
 
-      room.tiles.delete(previousTileKey);
+    if (playerTileOnFloor) {
+      room.tiles = room.tiles.filter(
+        (tile) =>
+          !(tile.occupiedBy.playerId === meta.playerId && tile.floor === floor),
+      );
 
       io.to(roomId).emit("tile-removed", {
         roomId,
-        floor: previousTile.floor,
-        slot: previousTile.slot,
+        floor: playerTileOnFloor.floor,
+        slot: playerTileOnFloor.slot,
       });
     }
 
-    const newTile: TileState = {
+    const newTile: Tile = {
       floor,
       slot,
       occupiedBy: {
-        playerId: player.playerId,
-        nickname: player.nickname,
+        playerId: currentPlayer.playerId,
+        nickname: currentPlayer.nickname,
       },
       selectedAt: Date.now(),
     };
 
-    room.tiles.set(tileKey, newTile);
+    room.tiles.push(newTile);
 
     io.to(roomId).emit("tile-updated", {
       roomId,
       tile: newTile,
-    });
-  });
-
-  socket.on("reset-room", (payload: { roomId: string }) => {
-    const { roomId } = payload;
-    const playerId = meta.playerId;
-
-    if (!playerId) {
-      socket.emit("reset-room-error", {
-        message: "player not found in socket session",
-      });
-      return;
-    }
-
-    const room = getRoom(roomId);
-    if (!room) {
-      socket.emit("reset-room-error", {
-        message: "room not found",
-      });
-      return;
-    }
-
-    const player = room.players.get(playerId);
-    if (!player) {
-      socket.emit("reset-room-error", {
-        message: "player not found in room",
-      });
-      return;
-    }
-
-    if (!player.isHost) {
-      socket.emit("reset-room-error", {
-        message: "only host can reset room",
-      });
-      return;
-    }
-
-    room.tiles.clear();
-
-    io.to(roomId).emit("room-reset", {
-      roomId,
-    });
-  });
-
-  socket.on("disconnect", () => {
-    const { roomId, playerId } = meta;
-
-    if (!roomId || !playerId) return;
-
-    const room = removePlayerFromRoom(roomId, playerId);
-
-    if (!room) return;
-
-    io.to(roomId).emit("player-list-updated", {
-      roomId,
-      players: getPlayersArray(room),
     });
   });
 }

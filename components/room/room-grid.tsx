@@ -2,9 +2,9 @@
 
 import clsx from "clsx";
 import { useState } from "react";
-
-import { PlayerColor } from "@/lib/color";
 import { getSocket } from "@/lib/socket/client";
+import { PlayerColor } from "@/lib/socket/color";
+import { toast } from "sonner";
 
 type Selection = {
   id: string;
@@ -34,8 +34,6 @@ export function RoomGrid({
   }));
 
   const handleSelect = (floor: number, slot: number) => {
-    setError("");
-
     const socket = getSocket();
 
     socket.emit("select-tile", {
