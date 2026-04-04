@@ -1,53 +1,71 @@
-import type {
-  PlayerSession,
-  RoomState,
-  TileKey,
-  TileState,
-} from "./socket-types";
+import type { ConnectedPlayer, RoomState } from "./types";
 
-const roomStore = new Map<string, RoomState>();
+const roomStore: Record<string, RoomState> = {};
 
-export function getOrCreateRoom(roomId: string, roomCode: string): RoomState {
-  const existing = roomStore.get(roomId);
-  if (existing) return existing;
-
-  const newRoom: RoomState = {
+export function createEmptyRoom(roomId: string, roomCode: string): RoomState {
+  return {
     roomId,
     roomCode,
-    players: new Map<string, PlayerSession>(),
-    tiles: new Map<TileKey, TileState>(),
+    players: [],
+    tiles: [],
+    playerColors: {},
   };
+}
+export function getOrCreateRoom(roomId: string, roomCode: string): RoomState {
+  const existingRoom = roomStore[roomId];
 
-  roomStore.set(roomId, newRoom);
+  if (existingRoom) {
+    return existingRoom;
+  }
+
+  const newRoom = createEmptyRoom(roomId, roomCode);
+  roomStore[roomId] = newRoom;
+
   return newRoom;
 }
 
-export function getRoom(roomId: string) {
-  return roomStore.get(roomId);
+export function getRoom(roomId: string): RoomState | undefined {
+  return roomStore[roomId];
 }
 
-export function removePlayerFromRoom(roomId: string, playerId: string) {
-  const room = roomStore.get(roomId);
-  if (!room) return null;
+export function upsertPlayerInRoom(
+  room: RoomState,
+  player: ConnectedPlayer,
+): void {
+  const existingPlayerIndex = room.players.findIndex(
+    (existingPlayer) => existingPlayer.playerId === player.playerId,
+  );
 
-  room.players.delete(playerId);
+  if (existingPlayerIndex === -1) {
+    room.players.push(player);
+    return;
+  }
 
-  if (room.players.size === 0) {
-    roomStore.delete(roomId);
+  room.players[existingPlayerIndex] = player;
+}
+
+export function removePlayerFromRoom(
+  roomId: string,
+  playerId: string,
+): RoomState | null {
+  const room = roomStore[roomId];
+
+  if (!room) {
+    return null;
+  }
+
+  room.players = room.players.filter((player) => player.playerId !== playerId);
+
+  room.tiles = room.tiles.filter(
+    (tile) => tile.occupiedBy.playerId !== playerId,
+  );
+
+  delete room.playerColors[playerId];
+
+  if (room.players.length === 0) {
+    delete roomStore[roomId];
     return null;
   }
 
   return room;
-}
-
-export function getPlayersArray(room: RoomState) {
-  return Array.from(room.players.values());
-}
-
-export function getTilesArray(room: RoomState) {
-  return Array.from(room.tiles.values());
-}
-
-export function makeTileKey(floor: number, slot: number): TileKey {
-  return `${floor}-${slot}`;
 }

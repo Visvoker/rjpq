@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { getRoomByCode } from "@/app/data/room";
 import { leaveRoom } from "@/app/actions/room";
-import { ResetButton } from "@/components/room/resetButton";
-import { LeaveButton } from "@/components/room/leaveButton";
-import { CopyRoomCodeButton } from "@/components/room/copyButton";
+import { ResetButton } from "@/components/room/reset-button";
 import { RoomRealtimeSection } from "@/components/room/room-realtime-section";
+import { LeaveButton } from "@/components/room/leave-button";
+import { CopyRoomCodeButton } from "@/components/room/copy-button";
 
 type RoomPageProps = {
   params: Promise<{
