@@ -1,5 +1,6 @@
 "use client";
 
+import { clearRoomSessionAction } from "@/app/actions/player-session";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -13,8 +14,25 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { Button } from "@/components/ui/button";
+import { getSocket } from "@/lib/socket/client";
+import { useRouter } from "next/navigation";
 
-export function LeaveButton({ action }: { action: () => Promise<void> }) {
+type LeaveButtonProps = {
+  roomId: string;
+};
+
+export function LeaveButton({ roomId }: LeaveButtonProps) {
+  const router = useRouter();
+
+  const handleLeave = async () => {
+    const socket = getSocket();
+
+    socket.emit("leave-room");
+    await clearRoomSessionAction();
+    // router.refresh();
+    router.push("/");
+  };
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -31,11 +49,13 @@ export function LeaveButton({ action }: { action: () => Promise<void> }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <form action={action}>
+        <form>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
 
-            <AlertDialogAction type="submit">確定離開</AlertDialogAction>
+            <AlertDialogAction onClick={handleLeave} type="button">
+              確定離開
+            </AlertDialogAction>
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

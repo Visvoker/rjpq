@@ -5,7 +5,6 @@ import { Pen } from "lucide-react";
 import { useState, useTransition } from "react";
 import { OTPInput } from "input-otp";
 
-import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 import { usePlayerStore } from "@/app/store/use-player-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,13 +17,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 
 type LobbyView = "nickname" | "menu" | "join";
 
 export function LobbyPage() {
   const router = useRouter();
-  const setPlayer = usePlayerStore((state) => state.setPlayer);
   const storedNickname = usePlayerStore((state) => state.nickname);
+  const setNickname = usePlayerStore((state) => state.setNickname);
 
   const [view, setView] = useState<LobbyView>(
     storedNickname ? "menu" : "nickname",
@@ -45,10 +45,6 @@ export function LobbyPage() {
     if (nicknameError) setNicknameError("");
   };
 
-  const clearRoomCodeError = () => {
-    if (roomCodeError) setRoomCodeError("");
-  };
-
   const handleConfirmNickname = () => {
     const trimmedNickname = draftNickname.trim();
 
@@ -63,6 +59,7 @@ export function LobbyPage() {
     }
 
     setConfirmedNickname(trimmedNickname);
+    setNickname(trimmedNickname);
     setNicknameError("");
     setView("menu");
   };
@@ -97,14 +94,6 @@ export function LobbyPage() {
         return;
       }
 
-      setPlayer({
-        nickname: result.nickname,
-        playerId: result.playerId,
-        roomId: result.roomId,
-        roomCode: result.roomCode,
-        isHost: result.isHost,
-      });
-
       router.push(`/room/${result.roomCode}`);
     });
   };
@@ -134,14 +123,6 @@ export function LobbyPage() {
         setRoomCodeError(result.error);
         return;
       }
-
-      setPlayer({
-        nickname: result.nickname,
-        playerId: result.playerId,
-        roomId: result.roomId,
-        roomCode: result.roomCode,
-        isHost: result.isHost,
-      });
 
       router.push(`/room/${result.roomCode}`);
     });
@@ -194,6 +175,7 @@ export function LobbyPage() {
 
         <CardFooter>
           <Button
+            type="button"
             onClick={handleConfirmNickname}
             className="w-full"
             disabled={isPending}
@@ -232,8 +214,8 @@ export function LobbyPage() {
         <CardFooter className="flex justify-between gap-2">
           <Button
             className="w-auto"
-            onClick={handleCreateRoom}
             disabled={isPending}
+            onClick={handleCreateRoom}
           >
             {isPending ? "Loading..." : "Create Room"}
           </Button>
@@ -243,6 +225,7 @@ export function LobbyPage() {
             variant="secondary"
             onClick={handleOpenJoinView}
             disabled={isPending}
+            type="button"
           >
             {isPending ? "Loading..." : "Join Room"}
           </Button>
@@ -272,7 +255,10 @@ export function LobbyPage() {
               <OTPInput
                 maxLength={6}
                 value={roomCode}
-                onChange={(value) => setRoomCode(value.toUpperCase())}
+                onChange={(value) => {
+                  setRoomCode(value.toUpperCase());
+                  if (roomCodeError) setRoomCodeError("");
+                }}
                 containerClassName="flex gap-2 justify-center"
                 render={({ slots }) => (
                   <>
@@ -297,6 +283,7 @@ export function LobbyPage() {
         <CardFooter>
           <div className="flex w-full items-center justify-between">
             <Button
+              type="button"
               variant="ghost"
               onClick={handleBackToMenu}
               disabled={isPending}
@@ -304,7 +291,7 @@ export function LobbyPage() {
               ← Back
             </Button>
 
-            <Button onClick={handleJoinRoom} disabled={isPending}>
+            <Button onClick={handleJoinRoom} disabled={isPending} type="button">
               {isPending ? "Loading..." : "Confirm Join"}
             </Button>
           </div>

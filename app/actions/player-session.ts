@@ -48,3 +48,12 @@ export async function joinRoomAction(formData: FormData) {
 
   return result;
 }
+
+export async function clearRoomSessionAction() {
+  const cookieStore = await cookies();
+
+  cookieStore.delete("nickname");
+  cookieStore.delete("playerId");
+  cookieStore.delete("roomId");
+  cookieStore.delete("roomCode");
+}

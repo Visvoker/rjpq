@@ -11,6 +11,7 @@ export function createEmptyRoom(roomId: string, roomCode: string): RoomState {
     playerColors: {},
   };
 }
+
 export function getOrCreateRoom(roomId: string, roomCode: string): RoomState {
   const existingRoom = roomStore[roomId];
 
@@ -68,4 +69,8 @@ export function removePlayerFromRoom(
   }
 
   return room;
+}
+
+export function removeRoom(roomId: string) {
+  delete roomStore[roomId];
 }

@@ -4,7 +4,6 @@ import clsx from "clsx";
 import { useState } from "react";
 import { getSocket } from "@/lib/socket/client";
 import { PlayerColor } from "@/lib/socket/color";
-import { toast } from "sonner";
 
 type Selection = {
   id: string;

@@ -10,7 +10,6 @@ import { redirect } from "next/navigation";
 function generateRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
-
 export async function createRoom(nickname: string) {
   const trimmedNickname = nickname.trim();
 
@@ -27,34 +26,18 @@ export async function createRoom(nickname: string) {
       const room = await prisma.room.create({
         data: {
           code,
-          players: {
-            create: {
-              nickname: trimmedNickname,
-              isHost: true,
-            },
-          },
-        },
-        include: {
-          players: true,
         },
       });
 
-      const hostPlayer = room.players[0];
-
-      const cookieStore = await cookies();
-      cookieStore.set("playerId", hostPlayer.id, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-      });
+      const playerId = crypto.randomUUID();
 
       return {
         success: true,
-        nickname: hostPlayer.nickname,
-        playerId: hostPlayer.id,
+        nickname: trimmedNickname,
+        playerId: playerId,
         roomId: room.id,
         roomCode: room.code,
-        isHost: hostPlayer.isHost,
+        isHost: true,
       };
     } catch (error) {
       attempts++;
@@ -71,7 +54,7 @@ export async function createRoom(nickname: string) {
     }
   }
 
-  return { error: "建立房間失敗，請稍後再試" };
+  return { error: "建立房間失敗，請稍後再試123" };
 }
 
 export async function joinRoom(roomCode: string, nickname: string) {
@@ -88,144 +71,116 @@ export async function joinRoom(roomCode: string, nickname: string) {
 
   const room = await prisma.room.findUnique({
     where: { code: trimmedRoomCode },
-    include: {
-      players: true,
-    },
   });
 
   if (!room) {
     return { error: "房間不存在" };
   }
 
-  if (room.players.length >= 4) {
-    return { error: "房間已滿" };
-  }
-
-  const duplicateNickname = room.players.some(
-    (player) => player.nickname.toLowerCase() === trimmedNickname.toLowerCase(),
-  );
-
-  if (duplicateNickname) {
-    return { error: "此暱稱已被使用" };
-  }
-
-  const player = await prisma.player.create({
-    data: {
-      nickname: trimmedNickname,
-      roomId: room.id,
-      isHost: false,
-    },
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set("playerId", player.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
+  const playerId = crypto.randomUUID();
 
   return {
     success: true,
-    nickname: player.nickname,
-    playerId: player.id,
+    nickname: trimmedNickname,
+    playerId,
     roomId: room.id,
     roomCode: room.code,
-    isHost: player.isHost,
+    isHost: false,
   };
 }
 
-export async function resetRoom() {
-  const cookieStore = await cookies();
-  const playerId = cookieStore.get("playerId")?.value;
+// export async function resetRoom() {
+//   const cookieStore = await cookies();
+//   const playerId = cookieStore.get("playerId")?.value;
 
-  if (!playerId) {
-    throw new Error("為登入玩家");
-  }
+//   if (!playerId) {
+//     throw new Error("為登入玩家");
+//   }
 
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    include: { room: true },
-  });
+//   const player = await prisma.player.findUnique({
+//     where: { id: playerId },
+//     include: { room: true },
+//   });
 
-  if (!player) {
-    throw new Error("玩家不存在");
-  }
+//   if (!player) {
+//     throw new Error("玩家不存在");
+//   }
 
-  if (!player.isHost) {
-    throw new Error("只有房主可以重置");
-  }
+//   if (!player.isHost) {
+//     throw new Error("只有房主可以重置");
+//   }
 
-  await prisma.selection.deleteMany({
-    where: {
-      roomId: player.roomId,
-    },
-  });
+//   await prisma.selection.deleteMany({
+//     where: {
+//       roomId: player.roomId,
+//     },
+//   });
 
-  // 讓畫面更新
-  revalidatePath(`/room/${player.room.code}`);
+//   // 讓畫面更新
+//   revalidatePath(`/room/${player.room.code}`);
 
-  return { success: true };
-}
+//   return { success: true };
+// }
 
-export async function leaveRoom() {
-  const cookieStore = await cookies();
-  const playerId = cookieStore.get("playerId")?.value;
+// export async function leaveRoom() {
+//   const cookieStore = await cookies();
+//   const playerId = cookieStore.get("playerId")?.value;
 
-  if (!playerId) {
-    redirect("/");
-  }
+//   if (!playerId) {
+//     redirect("/");
+//   }
 
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    include: { room: true },
-  });
+//   const player = await prisma.player.findUnique({
+//     where: { id: playerId },
+//     include: { room: true },
+//   });
 
-  if (!player) {
-    cookieStore.delete("playerId");
-    redirect("/");
-  }
+//   if (!player) {
+//     cookieStore.delete("playerId");
+//     redirect("/");
+//   }
 
-  const roomId = player.roomId;
-  const isHost = player.isHost;
+//   const roomId = player.roomId;
+//   const isHost = player.isHost;
 
-  await prisma.$transaction(async (tx) => {
-    // 刪自己選擇
-    await tx.selection.deleteMany({
-      where: { playerId },
-    });
+//   await prisma.$transaction(async (tx) => {
+//     // 刪自己選擇
+//     await tx.selection.deleteMany({
+//       where: { playerId },
+//     });
 
-    // 刪自己
-    await tx.player.delete({
-      where: { id: playerId },
-    });
+//     // 刪自己
+//     await tx.player.delete({
+//       where: { id: playerId },
+//     });
 
-    const remainingPlayers = await tx.player.findMany({
-      where: { roomId },
-      orderBy: { createdAt: "asc" },
-    });
+//     const remainingPlayers = await tx.player.findMany({
+//       where: { roomId },
+//       orderBy: { createdAt: "asc" },
+//     });
 
-    // 房間沒人 → 刪掉
-    if (remainingPlayers.length === 0) {
-      await tx.room.delete({
-        where: { id: roomId },
-      });
-      return;
-    }
+//     // 房間沒人 → 刪掉
+//     if (remainingPlayers.length === 0) {
+//       await tx.room.delete({
+//         where: { id: roomId },
+//       });
+//       return;
+//     }
 
-    // host 轉移
-    if (isHost) {
-      await tx.player.update({
-        where: { id: remainingPlayers[0].id },
-        data: { isHost: true },
-      });
-    }
-  });
+//     // host 轉移
+//     if (isHost) {
+//       await tx.player.update({
+//         where: { id: remainingPlayers[0].id },
+//         data: { isHost: true },
+//       });
+//     }
+//   });
 
-  // 清 cookie
-  cookieStore.delete("playerId");
-  cookieStore.delete("roomId");
-  cookieStore.delete("roomCode");
-  cookieStore.delete("nickname");
+//   // 清 cookie
+//   cookieStore.delete("playerId");
+//   cookieStore.delete("roomId");
+//   cookieStore.delete("roomCode");
+//   cookieStore.delete("nickname");
 
-  redirect("/");
-}
+//   redirect("/");
+// }

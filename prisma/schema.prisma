@@ -17,40 +17,35 @@ model Room {
   code      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  players    Player[]
-  selections Selection[]
 }
 
-model Player {
-  id        String   @id @default(cuid())
-  nickname  String
-  isHost    Boolean  @default(false)
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// model Player {
+//   id        String   @id @default(cuid())
+//   nickname  String
+//   isHost    Boolean  @default(false)
+//   roomId    String
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
 
-  selection Selection[]
+//   selection Selection[]
 
-  @@unique([roomId, nickname])
-}
+//   @@unique([roomId, nickname])
+// }
 
-model Selection {
-  id String @id @default(cuid())
+// model Selection {
+//   id String @id @default(cuid())
 
-  roomId   String
-  playerId String
+//   roomId   String
+//   playerId String
 
-  floor Int // 第幾層 (1~10)
-  slot  Int // 第幾個位置 (1~4)
+//   floor Int // 第幾層 (1~10)
+//   slot  Int // 第幾個位置 (1~4)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
 
-  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+//   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  @@unique([roomId, floor, slot]) //  同一格只能一人
-  @@unique([playerId, floor]) //  一個人一層只能選一格
-}
+//   @@unique([roomId, floor, slot]) //  同一格只能一人
+//   @@unique([playerId, floor]) //  一個人一層只能選一格
+// }

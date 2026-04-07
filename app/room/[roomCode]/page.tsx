@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { getRoomByCode } from "@/app/data/room";
-import { leaveRoom } from "@/app/actions/room";
 import { ResetButton } from "@/components/room/reset-button";
 import { RoomRealtimeSection } from "@/components/room/room-realtime-section";
 import { LeaveButton } from "@/components/room/leave-button";
@@ -24,26 +23,13 @@ export default async function RoomPage({ params }: RoomPageProps) {
     return <div className="p-6">房間不存在</div>;
   }
 
-  const players = room.players;
-
   const cookieStore = await cookies();
+
   const currentPlayerId = cookieStore.get("playerId")?.value;
+  const nickname = cookieStore.get("nickname")?.value;
 
-  if (!currentPlayerId) {
-    return <div className="p-6">找不到目前玩家</div>;
-  }
-
-  const currentPlayer = room.players.find(
-    (player) => player.id === currentPlayerId,
-  );
-
-  if (!currentPlayer) {
-    return <div className="p-6">目前玩家不在此房間</div>;
-  }
-
-  async function handleLeave() {
-    "use server";
-    await leaveRoom();
+  if (!currentPlayerId || !nickname) {
+    return <div className="p-6">找不到玩家資訊</div>;
   }
 
   return (
@@ -58,12 +44,10 @@ export default async function RoomPage({ params }: RoomPageProps) {
           roomId={room.id}
           roomCode={room.code}
           currentPlayer={{
-            playerId: currentPlayer.id,
-            nickname: currentPlayer.nickname,
-            isHost: currentPlayer.isHost,
+            playerId: currentPlayerId,
+            nickname: nickname,
+            isHost: false,
           }}
-          initialPlayers={players}
-          initialSelections={room.selections}
           actionsSlot={
             <Card>
               <CardHeader>
@@ -71,8 +55,8 @@ export default async function RoomPage({ params }: RoomPageProps) {
               </CardHeader>
               <CardContent className="flex gap-3">
                 <CopyRoomCodeButton roomCode={room.code} />
-                {currentPlayer.isHost && <ResetButton roomId={room.id} />}
-                <LeaveButton action={handleLeave} />
+                <ResetButton roomId={room.id} />
+                <LeaveButton roomId={room.id} />
               </CardContent>
             </Card>
           }

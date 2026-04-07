@@ -37,8 +37,6 @@ type RoomRealtimeSectionProps = {
   roomId: string;
   roomCode: string;
   currentPlayer: CurrentPlayer;
-  initialPlayers: Player[];
-  initialSelections: Selection[];
   actionsSlot: ReactNode;
 };
 
@@ -63,12 +61,10 @@ export function RoomRealtimeSection({
   roomId,
   roomCode,
   currentPlayer,
-  initialPlayers,
-  initialSelections,
   actionsSlot,
 }: RoomRealtimeSectionProps) {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
-  const [selections, setSelections] = useState<Selection[]>(initialSelections);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [selections, setSelections] = useState<Selection[]>([]);
   const [playerColorMap, setPlayerColorMap] = useState<
     Record<string, PlayerColor>
   >({});
@@ -76,13 +72,17 @@ export function RoomRealtimeSection({
   useEffect(() => {
     const socket = getSocket();
 
-    // connection
-    const onConnect = () => {
+    const emitJoinRoom = () => {
       socket.emit("join-room", {
         roomId,
         roomCode,
         player: currentPlayer,
       });
+    };
+
+    // connection
+    const onConnect = () => {
+      emitJoinRoom();
     };
 
     // init
@@ -93,6 +93,8 @@ export function RoomRealtimeSection({
       tiles: SocketTile[];
       playerColors: Record<string, PlayerColor>;
     }) => {
+      console.log("init-state players:", payload.players);
+
       setPlayers(normalizePlayers(payload.players));
       setSelections(normalizeSelections(payload.tiles));
       setPlayerColorMap(payload.playerColors);
@@ -161,19 +163,27 @@ export function RoomRealtimeSection({
 
     const onRoomReset = () => {
       setSelections([]);
+      toast.success("已重置所有格子");
+    };
+
+    const onRoomActionError = (payload: { message: string }) => {
+      console.log("room-action-error", payload.message);
+      toast.error(payload.message);
     };
 
     socket.on("connect", onConnect);
+
+    if (socket.connected) {
+      emitJoinRoom();
+    }
+
     socket.on("init-state", onInitState);
     socket.on("player-list-updated", onPlayerListUpdated);
     socket.on("tile-updated", onTileUpdated);
     socket.on("tile-select-error", onTileSelectError);
     socket.on("tile-removed", onTileRemoved);
     socket.on("room-reset", onRoomReset);
-
-    if (socket.connected) {
-      onConnect();
-    }
+    socket.on("room-action-error", onRoomActionError);
 
     return () => {
       socket.off("connect", onConnect);
@@ -183,8 +193,15 @@ export function RoomRealtimeSection({
       socket.off("tile-select-error", onTileSelectError);
       socket.off("tile-removed", onTileRemoved);
       socket.off("room-reset", onRoomReset);
+      socket.off("room-action-error", onRoomActionError);
     };
-  }, [roomId, roomCode, currentPlayer]);
+  }, [
+    roomId,
+    roomCode,
+    currentPlayer.playerId,
+    currentPlayer.nickname,
+    currentPlayer.isHost,
+  ]);
 
   const host = useMemo(
     () => players.find((player) => player.isHost),
