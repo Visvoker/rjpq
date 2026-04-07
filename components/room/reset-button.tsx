@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket/client";
+import { toast } from "sonner";
 
 type ResetButtonProps = {
   roomId: string;
@@ -42,11 +43,15 @@ export function ResetButton({ roomId }: ResetButtonProps) {
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <form onClick={handleReset}>
+        <form>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
 
-            <AlertDialogAction type="submit" variant="default">
+            <AlertDialogAction
+              onClick={handleReset}
+              type="button"
+              variant="default"
+            >
               確定重置
             </AlertDialogAction>
           </AlertDialogFooter>

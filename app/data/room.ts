@@ -10,10 +10,6 @@ export async function getRoomByCode(code: string) {
   try {
     const room = await prisma.room.findUnique({
       where: { code: trimmedCode },
-      include: {
-        players: true,
-        selections: true,
-      },
     });
 
     return room;

@@ -1,55 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type PlayerState = {
-  nickname: string | null;
-  playerId: string | null;
-  roomId: string | null;
-  roomCode: string | null;
-  isHost: boolean;
-  setPlayer: (payload: {
-    nickname: string;
-    playerId: string;
-    roomId: string;
-    roomCode: string;
-    isHost: boolean;
-  }) => void;
-  clearPlayer: () => void;
-  clearRoomSession: () => void;
+type PlayerStore = {
+  nickname: string;
+  setNickname: (nickname: string) => void;
+  clearNickname: () => void;
 };
 
-export const usePlayerStore = create<PlayerState>()(
+export const usePlayerStore = create<PlayerStore>()(
   persist(
     (set) => ({
-      nickname: null,
-      playerId: null,
-      roomId: null,
-      roomCode: null,
-      isHost: false,
-      setPlayer: ({ nickname, playerId, roomId, roomCode, isHost }) =>
-        set({
-          nickname,
-          playerId,
-          roomId,
-          roomCode,
-          isHost,
-        }),
-      clearPlayer: () =>
-        set({
-          nickname: null,
-          playerId: null,
-          roomId: null,
-          roomCode: null,
-          isHost: false,
-        }),
-      clearRoomSession: () =>
-        set((state) => ({
-          nickname: state.nickname,
-          playerId: null,
-          roomId: null,
-          roomCode: null,
-          isHost: false,
-        })),
+      nickname: "",
+      setNickname: (nickname) => set({ nickname }),
+      clearNickname: () => set({ nickname: "" }),
     }),
     {
       name: "rjpq-player-storage",
