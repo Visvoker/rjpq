@@ -6,6 +6,8 @@ import { useState, useTransition } from "react";
 import { OTPInput } from "input-otp";
 
 import { usePlayerStore } from "@/app/store/use-player-store";
+import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,7 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createRoomAction, joinRoomAction } from "@/app/actions/player-session";
 
 type LobbyView = "nickname" | "menu" | "join";
 

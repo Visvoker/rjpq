@@ -8,7 +8,6 @@ import {
   upsertPlayerInRoom,
 } from "./room-store";
 import { assignInitialPlayerColor, PLAYER_COLOR_CLASSES } from "./color";
-import { prisma } from "../db";
 
 type SocketMeta = {
   roomId?: string;
@@ -167,7 +166,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
       return;
     }
 
-    // 5. 如果玩家在這層已有其他格 → 先移除
+    // 5. 如果玩家在這層已有其他格 → 先移除原先所選的
     if (playerTileOnFloor) {
       room.tiles = room.tiles.filter(
         (tile) =>

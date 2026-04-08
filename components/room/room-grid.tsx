@@ -70,14 +70,11 @@ export function RoomGrid({
                 : undefined;
 
               const isMine = selection?.playerId === currentPlayerId;
-              const isOccupiedByOther =
-                !!selection && selection.playerId !== currentPlayerId;
 
               return (
                 <button
                   key={`${floorItem.floor}-${slot}`}
                   type="button"
-                  disabled={isOccupiedByOther}
                   onClick={() => handleSelect(floorItem.floor, slot)}
                   className={clsx(
                     "aspect-square max-w-[40px] sm:max-w-[50px] rounded-lg border shadow-sm transition",
