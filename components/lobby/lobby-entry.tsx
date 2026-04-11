@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 
 type LobbyView = "nickname" | "menu" | "join";
 
-export function LobbyPage() {
+export function LobbyEntry() {
   const router = useRouter();
   const storedNickname = usePlayerStore((state) => state.nickname);
   const setNickname = usePlayerStore((state) => state.setNickname);
