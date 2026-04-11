@@ -1,11 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
-
 import { prisma } from "@/lib/db";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 function generateRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();

@@ -17,19 +17,18 @@ import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket/client";
 import { useRouter } from "next/navigation";
 
-type LeaveButtonProps = {
-  roomId: string;
-};
-
-export function LeaveButton({ roomId }: LeaveButtonProps) {
+export function LeaveButton() {
   const router = useRouter();
 
   const handleLeave = async () => {
     const socket = getSocket();
 
     socket.emit("leave-room");
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     await clearRoomSessionAction();
-    // router.refresh();
+
     router.push("/");
   };
 

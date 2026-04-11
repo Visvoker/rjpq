@@ -7,6 +7,7 @@ import { ResetButton } from "@/components/room/reset-button";
 import { RoomRealtimeSection } from "@/components/room/room-realtime-section";
 import { LeaveButton } from "@/components/room/leave-button";
 import { CopyRoomCodeButton } from "@/components/room/copy-button";
+import { JoinRoomByLinkSection } from "@/components/room/join-room-by-link-section";
 
 type RoomPageProps = {
   params: Promise<{
@@ -27,9 +28,14 @@ export default async function RoomPage({ params }: RoomPageProps) {
 
   const currentPlayerId = cookieStore.get("playerId")?.value;
   const nickname = cookieStore.get("nickname")?.value;
+  const cookieRoomCode = cookieStore.get("roomCode")?.value;
 
-  if (!currentPlayerId || !nickname) {
-    return <div className="p-6">找不到玩家資訊</div>;
+  if (!currentPlayerId || !nickname || cookieRoomCode !== room.code) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-300">
+        <JoinRoomByLinkSection roomCode={room.code} />
+      </div>
+    );
   }
 
   return (
@@ -56,7 +62,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
               <CardContent className="flex gap-3">
                 <CopyRoomCodeButton roomCode={room.code} />
                 <ResetButton roomId={room.id} />
-                <LeaveButton roomId={room.id} />
+                <LeaveButton />
               </CardContent>
             </Card>
           }

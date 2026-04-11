@@ -157,7 +157,6 @@ export function RoomRealtimeSection({
       floor: number;
       slot: number;
     }) => {
-      console.error("tile-select-error:", payload);
       toast.error(payload.message);
     };
 

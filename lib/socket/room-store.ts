@@ -37,12 +37,29 @@ export function upsertPlayerInRoom(
     (existingPlayer) => existingPlayer.playerId === player.playerId,
   );
 
-  if (existingPlayerIndex === -1) {
-    room.players.push(player);
+  // if (existingPlayerIndex === -1) {
+  //   room.players.push(player);
+  //   return;
+  // }
+
+  // room.players[existingPlayerIndex] = player;
+
+  if (existingPlayerIndex !== -1) {
+    // 已存在 → 更新 socketId（例如 refresh）
+    room.players[existingPlayerIndex] = {
+      ...room.players[existingPlayerIndex],
+      socketId: player.socketId,
+    };
     return;
   }
 
-  room.players[existingPlayerIndex] = player;
+  // ✅ 新玩家
+  const isFirstPlayer = room.players.length === 0;
+
+  room.players.push({
+    ...player,
+    isHost: isFirstPlayer,
+  });
 }
 
 export function removePlayerFromRoom(
@@ -55,6 +72,13 @@ export function removePlayerFromRoom(
     return null;
   }
 
+  const leavingPlayer = room.players.find(
+    (player) => player.playerId === playerId,
+  );
+
+  const wasHost = leavingPlayer?.isHost ?? false;
+  // const wasHost = leavingPlayer? leavingPlayer.isHost: undefined;
+
   room.players = room.players.filter((player) => player.playerId !== playerId);
 
   room.tiles = room.tiles.filter(
@@ -66,6 +90,13 @@ export function removePlayerFromRoom(
   if (room.players.length === 0) {
     delete roomStore[roomId];
     return null;
+  }
+
+  if (wasHost) {
+    room.players[0] = {
+      ...room.players[0],
+      isHost: true,
+    };
   }
 
   return room;

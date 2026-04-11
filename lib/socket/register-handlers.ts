@@ -4,11 +4,11 @@ import type { JoinRoomPayload, SelectTilePayload, Tile } from "./types";
 import {
   getOrCreateRoom,
   getRoom,
+  removePlayerFromRoom,
   removeRoom,
   upsertPlayerInRoom,
 } from "./room-store";
 import { assignInitialPlayerColor, PLAYER_COLOR_CLASSES } from "./color";
-import { prisma } from "../db";
 
 type SocketMeta = {
   roomId?: string;
@@ -21,6 +21,28 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
   socket.on("join-room", (payload: JoinRoomPayload) => {
     const { roomId, roomCode, player } = payload;
 
+    // 先處理 換房
+    const previousRoomId = meta.roomId;
+    const currentPlayerId = meta.playerId;
+
+    if (previousRoomId && currentPlayerId && previousRoomId !== roomId) {
+      const previousRoom = removePlayerFromRoom(
+        previousRoomId,
+        currentPlayerId,
+      );
+
+      socket.leave(previousRoomId);
+
+      if (previousRoom) {
+        io.to(previousRoomId).emit("player-list-updated", {
+          roomId: previousRoomId,
+          players: previousRoom.players,
+          playerColors: previousRoom.playerColors,
+        });
+      }
+    }
+
+    // 加入新房
     const room = getOrCreateRoom(roomId, roomCode);
 
     socket.join(roomId);
@@ -44,7 +66,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
       }
     }
 
-    // 3️⃣ 傳 init-state（只給自己）
+    // 傳 init-state（只給自己）
     socket.emit("init-state", {
       roomId: room.roomId,
       roomCode: room.roomCode,
@@ -53,7 +75,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
       playerColors: room.playerColors,
     });
 
-    // 4️⃣ 廣播玩家列表更新（給整個房間）
+    // 廣播玩家列表更新（給整個房間）
     io.to(roomId).emit("player-list-updated", {
       roomId,
       players: room.players,
@@ -167,7 +189,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
       return;
     }
 
-    // 5. 如果玩家在這層已有其他格 → 先移除
+    // 5. 如果玩家在這層已有其他格 → 先移除原先所選的
     if (playerTileOnFloor) {
       room.tiles = room.tiles.filter(
         (tile) =>
