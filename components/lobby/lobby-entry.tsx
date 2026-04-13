@@ -24,17 +24,15 @@ type LobbyView = "nickname" | "menu" | "join";
 
 export function LobbyEntry() {
   const router = useRouter();
-  const storedNickname = usePlayerStore((state) => state.nickname);
-  const setNickname = usePlayerStore((state) => state.setNickname);
 
-  const [view, setView] = useState<LobbyView>(
-    storedNickname ? "menu" : "nickname",
-  );
+  // zustand
+  const confirmedNickname = usePlayerStore((state) => state.nickname);
+  const setConfirmedNickname = usePlayerStore((state) => state.setNickname);
+  const hasHydrated = usePlayerStore((state) => state.hasHydrated);
 
-  const [draftNickname, setDraftNickname] = useState(storedNickname ?? "");
-  const [confirmedNickname, setConfirmedNickname] = useState(
-    storedNickname ?? "",
-  );
+  // UI state
+  const [view, setView] = useState<LobbyView>("menu");
+  const [draftNickname, setDraftNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
 
   const [nicknameError, setNicknameError] = useState("");
@@ -42,27 +40,39 @@ export function LobbyEntry() {
 
   const [isPending, startTransition] = useTransition();
 
-  const clearNicknameError = () => {
-    if (nicknameError) setNicknameError("");
-  };
+  if (!hasHydrated) {
+    return null;
+  }
+
+  const currentView: LobbyView = confirmedNickname ? view : "nickname";
+
+  // ===== handlers =====
 
   const handleConfirmNickname = () => {
-    const trimmedNickname = draftNickname.trim();
+    const trimmed = draftNickname.trim();
 
-    if (!trimmedNickname) {
+    if (!trimmed) {
       setNicknameError("請輸入暱稱");
       return;
     }
 
-    if (trimmedNickname.length > 16) {
+    if (trimmed.length > 16) {
       setNicknameError("暱稱最多 16 個字");
       return;
     }
 
-    setConfirmedNickname(trimmedNickname);
-    setNickname(trimmedNickname);
+    setConfirmedNickname(trimmed);
+    setDraftNickname(trimmed);
     setNicknameError("");
     setView("menu");
+  };
+
+  const handleEditNickname = () => {
+    setDraftNickname(confirmedNickname);
+    setNicknameError("");
+    setRoomCode("");
+    setRoomCodeError("");
+    setView("nickname");
   };
 
   const handleOpenJoinView = () => {
@@ -129,13 +139,7 @@ export function LobbyEntry() {
     });
   };
 
-  const handleEditNickname = () => {
-    setDraftNickname(confirmedNickname);
-    setNicknameError("");
-    setRoomCode("");
-    setRoomCodeError("");
-    setView("nickname");
-  };
+  // ===== views =====
 
   const renderNicknameView = () => {
     return (
@@ -156,17 +160,19 @@ export function LobbyEntry() {
                   </span>
                 )}
               </div>
+
               <Input
                 id="nickname"
                 value={draftNickname}
                 maxLength={16}
                 onChange={(e) => {
                   setDraftNickname(e.target.value);
-                  clearNicknameError();
+                  if (nicknameError) setNicknameError("");
                 }}
                 placeholder="John"
                 disabled={isPending}
               />
+
               {nicknameError && (
                 <p className="text-sm text-red-500">{nicknameError}</p>
               )}
@@ -194,7 +200,7 @@ export function LobbyEntry() {
         <CardContent>
           <div className="flex items-center">
             <p className="text-muted-foreground ">
-              Nickname:{" "}
+              Nickname:
               <span className="font-bold text-xl text-black ml-1">
                 {confirmedNickname}
               </span>
@@ -212,6 +218,7 @@ export function LobbyEntry() {
             </Button>
           </div>
         </CardContent>
+
         <CardFooter className="flex justify-between gap-2">
           <Button
             className="w-auto"
@@ -301,20 +308,23 @@ export function LobbyEntry() {
     );
   };
 
+  // ===== render =====
+
   return (
     <Card className="flex w-full max-w-sm flex-col">
-      <CardHeader className="items-center space-y-2 text-center">
+      <CardHeader className="text-center space-y-2 items-center">
         <CardTitle className="text-2xl font-bold">Artale RJPQ</CardTitle>
-        {view === "nickname" && (
+
+        {currentView === "nickname" && (
           <CardDescription>
             Enter your nickname below to create or join the room
           </CardDescription>
         )}
       </CardHeader>
 
-      {view === "nickname" && renderNicknameView()}
-      {view === "menu" && renderMenuView()}
-      {view === "join" && renderJoinView()}
+      {currentView === "nickname" && renderNicknameView()}
+      {currentView === "menu" && renderMenuView()}
+      {currentView === "join" && renderJoinView()}
     </Card>
   );
 }

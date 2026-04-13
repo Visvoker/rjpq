@@ -14,7 +14,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket/client";
-import { toast } from "sonner";
 
 type ResetButtonProps = {
   roomId: string;

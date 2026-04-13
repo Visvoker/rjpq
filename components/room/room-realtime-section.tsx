@@ -1,7 +1,6 @@
 "use client";
 
 import { toast } from "sonner";
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { getSocket } from "@/lib/socket/client";
@@ -13,6 +12,9 @@ import type {
   Tile as SocketTile,
 } from "@/lib/socket/types";
 import { PlayerColor } from "@/lib/socket/color";
+import { buildPlayerPaths } from "@/lib/build-player-paths";
+import { RoomActionsCard } from "./room-actions-card";
+import { RoomPlayerPath } from "./room-player-path";
 
 type Player = {
   id: string;
@@ -37,7 +39,6 @@ type RoomRealtimeSectionProps = {
   roomId: string;
   roomCode: string;
   currentPlayer: CurrentPlayer;
-  actionsSlot: ReactNode;
 };
 
 function normalizePlayers(players: SocketPlayer[]): Player[] {
@@ -61,7 +62,6 @@ export function RoomRealtimeSection({
   roomId,
   roomCode,
   currentPlayer,
-  actionsSlot,
 }: RoomRealtimeSectionProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
@@ -94,6 +94,7 @@ export function RoomRealtimeSection({
       playerColors: Record<string, PlayerColor>;
     }) => {
       console.log("init-state players:", payload.players);
+      console.log("tile:", payload.tiles);
 
       setPlayers(normalizePlayers(payload.players));
       setSelections(normalizeSelections(payload.tiles));
@@ -207,9 +208,13 @@ export function RoomRealtimeSection({
     [players],
   );
 
+  const playerPath = useMemo(() => {
+    return buildPlayerPaths(selections, currentPlayer.playerId, 10);
+  }, [selections, currentPlayer.playerId]);
+
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:px-2">
-      <div className="w-full md:col-span-1 md:h-full">
+    <div className="w-full max-w-sm mx-auto md:max-w-none grid grid-cols-1 gap-y-6 md:grid-cols-2 md:px-2 md:w-full md:h-full">
+      <div className="">
         <RoomGrid
           roomId={roomId}
           currentPlayerId={currentPlayer.playerId}
@@ -217,8 +222,11 @@ export function RoomRealtimeSection({
           playerColorMap={playerColorMap}
         />
       </div>
-
-      <div className="space-y-6 h-full md:col-span-1">
+      {/* mobile：path 內嵌在 actions */}
+      <div className="block md:hidden">
+        <RoomActionsCard roomCode={roomCode} playerPath={playerPath} showPath />
+      </div>
+      <div className="space-y-6 h-full">
         <RoomInfoCard
           roomCode={roomCode}
           hostNickname={host ? host.nickname : "無"}
@@ -231,7 +239,13 @@ export function RoomRealtimeSection({
           playerColorMap={playerColorMap}
         />
 
-        {actionsSlot}
+        <div className="hidden md:block ">
+          <RoomActionsCard roomCode={roomCode} playerPath={playerPath} />
+        </div>
+
+        <div className="hidden md:block ">
+          <RoomPlayerPath playerPath={playerPath} />
+        </div>
       </div>
     </div>
   );

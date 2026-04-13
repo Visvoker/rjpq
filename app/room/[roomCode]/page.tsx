@@ -40,8 +40,8 @@ export default async function RoomPage({ params }: RoomPageProps) {
 
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-6 ">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
+      <div className="mx-auto max-w-7xl ">
+        <div className="mb-6 hidden md:block">
           <h1 className="text-2xl font-bold">RJPQ Room</h1>
           <p className="text-sm text-muted-foreground">房號：{room.code}</p>
         </div>
@@ -54,18 +54,6 @@ export default async function RoomPage({ params }: RoomPageProps) {
             nickname: nickname,
             isHost: false,
           }}
-          actionsSlot={
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="flex gap-3">
-                <CopyRoomCodeButton roomCode={room.code} />
-                <ResetButton roomId={room.id} />
-                <LeaveButton />
-              </CardContent>
-            </Card>
-          }
         />
       </div>
     </div>
