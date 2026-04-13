@@ -52,7 +52,11 @@ export function LeaveButton() {
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
 
-            <AlertDialogAction onClick={handleLeave} type="button">
+            <AlertDialogAction
+              onClick={handleLeave}
+              type="button"
+              variant="destructive"
+            >
               確定離開
             </AlertDialogAction>
           </AlertDialogFooter>
