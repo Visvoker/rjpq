@@ -18,3 +18,14 @@ export async function getRoomByCode(code: string) {
     return null;
   }
 }
+
+export async function deleteRoomById(roomId: string) {
+  console.log({ deleteRoom: roomId });
+  try {
+    await prisma.room.delete({
+      where: { id: roomId },
+    });
+  } catch (error) {
+    console.error("deleteRoomById error:", error);
+  }
+}

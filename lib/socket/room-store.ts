@@ -49,6 +49,9 @@ export function upsertPlayerInRoom(
     room.players[existingPlayerIndex] = {
       ...room.players[existingPlayerIndex],
       socketId: player.socketId,
+      nickname: player.nickname,
+      isConnected: true,
+      disconnectedAt: undefined,
     };
     return;
   }
@@ -59,6 +62,8 @@ export function upsertPlayerInRoom(
   room.players.push({
     ...player,
     isHost: isFirstPlayer,
+    isConnected: true,
+    disconnectedAt: undefined,
   });
 }
 

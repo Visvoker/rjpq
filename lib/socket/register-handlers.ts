@@ -9,6 +9,7 @@ import {
   upsertPlayerInRoom,
 } from "./room-store";
 import { assignInitialPlayerColor, PLAYER_COLOR_CLASSES } from "./color";
+import { deleteRoomById } from "@/app/data/room";
 
 type SocketMeta = {
   roomId?: string;
@@ -21,10 +22,26 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
   socket.on("join-room", (payload: JoinRoomPayload) => {
     const { roomId, roomCode, player } = payload;
 
-    // 先處理 換房
     const previousRoomId = meta.roomId;
     const currentPlayerId = meta.playerId;
 
+    const room = getOrCreateRoom(roomId, roomCode);
+
+    const existingPlayer = room.players.find(
+      (existingPlayer) => existingPlayer.playerId === player.playerId,
+    );
+
+    const isReconnectingPlayer = Boolean(existingPlayer);
+
+    // 先檢查新房能不能進
+    if (!isReconnectingPlayer && room.players.length >= 4) {
+      socket.emit("room-action-error", {
+        message: "房間已滿",
+      });
+      return;
+    }
+
+    // 確認可進後，再處理換房
     if (previousRoomId && currentPlayerId && previousRoomId !== roomId) {
       const previousRoom = removePlayerFromRoom(
         previousRoomId,
@@ -41,9 +58,6 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
         });
       }
     }
-
-    // 加入新房
-    const room = getOrCreateRoom(roomId, roomCode);
 
     socket.join(roomId);
     meta.roomId = roomId;
@@ -277,19 +291,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
     const roomId = meta.roomId;
     const playerId = meta.playerId;
 
-    if (!roomId) {
-      socket.emit("room-action-error", {
-        message: "找不到房間資訊",
-      });
-      return;
-    }
-
-    if (!playerId) {
-      socket.emit("room-action-error", {
-        message: "找不到玩家資訊",
-      });
-      return;
-    }
+    if (!roomId || !playerId) return;
 
     const room = getRoom(roomId);
 
@@ -343,6 +345,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 
     if (room.players.length === 0) {
       removeRoom(roomId);
+      deleteRoomById(roomId);
     } else {
       io.to(roomId).emit("player-list-updated", {
         roomId,
@@ -350,5 +353,45 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
         playerColors: room.playerColors,
       });
     }
+  });
+
+  socket.on("disconnect", () => {
+    const roomId = meta.roomId;
+    const playerId = meta.playerId;
+
+    if (!roomId || !playerId) return;
+
+    const room = getRoom(roomId);
+    if (!room) return;
+
+    const player = room.players.find((p) => p.playerId === playerId);
+
+    if (!player) return;
+
+    player.isConnected = false;
+    player.disconnectedAt = Date.now();
+
+    setTimeout(async () => {
+      const room = getRoom(roomId);
+
+      if (!room) return;
+
+      const targetPlayer = room.players.find((p) => p.playerId === playerId);
+
+      if (!targetPlayer || targetPlayer.isConnected) return;
+
+      const updatedRoom = removePlayerFromRoom(roomId, playerId);
+
+      if (!updatedRoom) {
+        await deleteRoomById(roomId);
+        return;
+      }
+
+      io.to(roomId).emit("player-list-updated", {
+        roomId,
+        players: updatedRoom.players,
+        playerColors: updatedRoom.playerColors,
+      });
+    }, 10000);
   });
 }

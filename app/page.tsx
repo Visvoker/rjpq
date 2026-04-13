@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getRoomByCode } from "./data/room";
 import { LobbyEntry } from "@/components/lobby/lobby-entry";
-import { clearRoomSessionAction } from "./actions/player-session";
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -17,8 +16,6 @@ export default async function Home() {
     if (room) {
       redirect(`/room/${roomCode}`);
     }
-
-    await clearRoomSessionAction();
   }
 
   return (

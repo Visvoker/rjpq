@@ -6,6 +6,8 @@ export type Player = {
   playerId: string;
   nickname: string;
   isHost: boolean;
+  isConnected: boolean;
+  disconnectedAt?: number;
 };
 
 export type ConnectedPlayer = Player & {

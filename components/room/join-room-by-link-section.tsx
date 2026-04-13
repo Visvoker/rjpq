@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { joinRoomAction } from "@/app/actions/player-session";
 import { useRouter } from "next/navigation";
+import { usePlayerStore } from "@/app/store/use-player-store";
 
 type JoinRoomByLinkSectionProps = {
   roomCode: string;
@@ -25,7 +26,10 @@ export function JoinRoomByLinkSection({
 }: JoinRoomByLinkSectionProps) {
   const router = useRouter();
 
-  const [nickname, setNickname] = useState("");
+  const nickname = usePlayerStore((state) => state.nickname);
+  const setNickname = usePlayerStore((state) => state.setNickname);
+  const hasHydrated = usePlayerStore((state) => state.hasHydrated);
+
   const [nicknameError, setNicknameError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -57,10 +61,16 @@ export function JoinRoomByLinkSection({
         return;
       }
 
+      setNickname(trimmedNickname);
+
       router.push(`/room/${result.roomCode}`);
       router.refresh();
     });
   };
+
+  if (!hasHydrated) {
+    return null;
+  }
 
   return (
     <>

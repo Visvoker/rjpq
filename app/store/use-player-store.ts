@@ -5,6 +5,8 @@ type PlayerStore = {
   nickname: string;
   setNickname: (nickname: string) => void;
   clearNickname: () => void;
+  hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
 };
 
 export const usePlayerStore = create<PlayerStore>()(
@@ -13,9 +15,14 @@ export const usePlayerStore = create<PlayerStore>()(
       nickname: "",
       setNickname: (nickname) => set({ nickname }),
       clearNickname: () => set({ nickname: "" }),
+      hasHydrated: false,
+      setHasHydrated: (state) => set({ hasHydrated: state }),
     }),
     {
       name: "rjpq-player-storage",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );
