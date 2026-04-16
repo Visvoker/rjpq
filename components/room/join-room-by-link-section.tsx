@@ -57,7 +57,7 @@ export function JoinRoomByLinkSection({
       const result = await joinRoomAction(formData);
 
       if ("error" in result) {
-        setNicknameError(result.error);
+        setNicknameError(result.error ?? "");
         return;
       }
 

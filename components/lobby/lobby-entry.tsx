@@ -100,7 +100,7 @@ export function LobbyEntry() {
       const result = await createRoomAction(formData);
 
       if ("error" in result) {
-        setNicknameError(result.error);
+        setNicknameError(result.error ?? "");
         setView("nickname");
         return;
       }
@@ -131,7 +131,7 @@ export function LobbyEntry() {
       const result = await joinRoomAction(formData);
 
       if ("error" in result) {
-        setRoomCodeError(result.error);
+        setRoomCodeError(result.error ?? "");
         return;
       }
 
