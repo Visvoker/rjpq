@@ -12,7 +12,7 @@ export function RoomPlayerPath({ playerPath }: RoomPlayerPathProps) {
   return (
     <Card>
       <CardContent>
-        <p className="whitespace-pre text-2xl md:text-4xl font-mono tracking-[0.3em] flex justify-center">
+        <p className="whitespace-pre text-2xl md:text-4xl font-mono tracking-[0.3em] flex justify-center items-center ">
           {playerPath}
         </p>
       </CardContent>

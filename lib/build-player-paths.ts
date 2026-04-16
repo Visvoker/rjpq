@@ -32,5 +32,5 @@ export function buildPlayerPaths(
     result.push(rawPath.slice(i, i + groupSize));
   }
 
-  return result.join(" - ");
+  return result.join("-");
 }
